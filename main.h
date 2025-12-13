@@ -13,22 +13,38 @@
 
 // các cài đặt chính
 #define DEUG_MODE             1               // Bật chế độ debug (1: Bật, 0: Tắt)
-#define WRITE_BUFFER_SIZE    1024            // Kích thước buffer ghi file log
+#define WRITE_BUFFER_SIZE    128           // Kích thước buffer ghi file log
 
-// Định nghĩa kiểu sự kiện
+
+/**
+ * @brief  Loại sự kiện người dùng.
+ */
 typedef enum {
 	EVT_KEYBOARD = 1,
 	EVT_MOUSE    = 2
 } MAIN_EventType;
 
-// Dữ liệu thô của bàn phím
+/**
+ * @brief  Dữ liệu thô của sự kiện bàn phím.
+ *
+ * @param vkCode   Mã phím ảo (Virtual-Key Code).
+ * @param scanCode Mã scan phần cứng.
+ * @param flags    Cờ sự kiện: KeyUp, KeyDown, Extended Key.
+ */
 typedef struct {
 	DWORD vkCode;       // Virtual Key Code
 	DWORD scanCode;     // Hardware Scan Code
 	DWORD flags;        // KeyUp, KeyDown, Extended Key
 } MAIN_RawKeyData;
 
-// Dữ liệu thô của chuột
+/**
+ * @brief  Dữ liệu thô của sự kiện chuột.
+ *
+ * @param x         Tọa độ X trên màn hình.
+ * @param y         Tọa độ Y trên màn hình.
+ * @param mouseData Scroll delta hoặc giá trị XButton.
+ * @param flags     Cờ sự kiện: Click, Move, Absolute...
+ */
 typedef struct {
 	LONG  x;            // Tọa độ X
 	LONG  y;            // Tọa độ Y
@@ -36,7 +52,14 @@ typedef struct {
 	DWORD flags;        // Cờ sự kiện (Click, Absolute...)
 } MAIN_RawMouseData;
 
-// Dữ liệu sự kiện người dùng đã xử lý thô
+/**
+ * @brief  Sự kiện người dùng được chuẩn hóa dùng cho hệ thống logging.
+ *
+ * @param type       Loại sự kiện (MAIN_EventType).
+ * @param timestamp  Thời điểm xảy ra (GetTickCount64 hoặc QPC).
+ * @param msgId      Windows Message ID (WM_KEYDOWN, WM_MOUSEMOVE...).
+ * @param data       Union chứa dữ liệu chuột hoặc bàn phím.
+ */
 typedef struct {
 	uint8_t   type;        // 1 byte: Loại sự kiện (EventType)
 	uint64_t  timestamp;   // 8 bytes: Thời gian (dùng GetTickCount64 hoặc QueryPerformanceCounter)
@@ -47,7 +70,16 @@ typedef struct {
 	} data;                // Union giúp tiết kiệm bộ nhớ
 } MAIN_UserEvent;
 
-// Header mô tả metadata của file log
+/**
+ * @brief  Header mô tả metadata của file log.
+ *
+ * @param signature     Chuỗi nhận diện ("LOGX").
+ * @param version       Phiên bản cấu trúc dữ liệu.
+ * @param startTime     Thời điểm bắt đầu ghi log.
+ * @param screenWidth   Độ phân giải ngang.
+ * @param screenHeight  Độ phân giải dọc.
+ * @param reserved      Dự phòng cho mở rộng.
+ */
 typedef struct {
 	char      signature[4]; // "LOGX"
 	uint16_t  version;      // Phiên bản cấu trúc dữ liệu
@@ -57,7 +89,22 @@ typedef struct {
 	char      reserved[12]; // Dự phòng
 } MAIN_LogFileHeader;
 
-// Quản lý toàn bộ trạng thái ứng dụng
+/**
+ * @brief  Cấu trúc quản lý toàn bộ trạng thái ứng dụng ghi log.
+ *
+ * @param hKeyboardHook  Handle hook bàn phím.
+ * @param hMouseHook     Handle hook chuột.
+ * @param hInstance      Instance của module hiện tại.
+ *
+ * @param logFile        Con trỏ đến file log đang mở.
+ * @param filePath       Đường dẫn file log.
+ * @param isRecording    Cờ đang ghi hay không.
+ *
+ * @param buffer         Bộ đệm tạm sự kiện (malloc cấp phát).
+ * @param bufferCount    Số lượng phần tử trong buffer.
+ *
+ * @param csLock         Critical section để đồng bộ hóa.
+ */
 typedef struct {
 	// A. Quản lý Hooks
 	HHOOK       hKeyboardHook;
