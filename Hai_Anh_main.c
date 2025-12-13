@@ -1,86 +1,124 @@
 #include "main.h"
 #include <direct.h>
 
+#define WRITE_BUFFER_SIZE    100000           // Kích thước buffer ghi file log
 
-#define TIME_OUT 5000 // 5 giây
-uint16_t HOOK_logIndex = 0;
-volatile uint8_t HOOK_currentBuffer = 0;
-volatile uint8_t HOOK_isBufferFull[2] = {0};
-uint16_t HOOK_bufferCount[2] = {0};
-uint32_t HOOK_bufferMsgId[WRITE_BUFFER_SIZE][2] = {0};
-MSLLHOOKSTRUCT HOOK_buffermouse[WRITE_BUFFER_SIZE][2] = {0}; // Giả sử buffer có kích thước 1024 sự kiện
-volatile uint8_t HOOK_is_running = 0;
+typedef struct {
+  LONG  x;            // Tọa độ X
+  LONG  y;            // Tọa độ Y
+  DWORD mouseData;   // Scroll delta hoặc giá trị XButton
+  DWORD time;
+  uint32_t MsgId;
+} HOOK_rawMouseData;
+
+typedef struct {
+  uint32_t pRead;
+  uint32_t pWrite;
+  HOOK_rawMouseData HOOK_buffermouse[WRITE_BUFFER_SIZE];
+} HOOK_ringMouseData;
+
+uint8_t HOOK_FUNC_addRead_RingMouseData(HOOK_ringMouseData* ring, uint32_t *address) {
+  if(ring->pRead == ring->pWrite) return 1; // empty
+    *address = ring->pRead;
+    ring->pRead = (ring->pRead + 1) % WRITE_BUFFER_SIZE;
+    return 0;
+}
+
+uint8_t HOOK_FUNC_addWrite_RingMouseData(HOOK_ringMouseData* ring, uint32_t *address) {
+  uint32_t next = (ring->pWrite + 1) % WRITE_BUFFER_SIZE;
+  if(next == ring->pRead) return 1; // full
+  *address = ring->pWrite;
+  ring->pWrite = next;
+  return 0;
+}
+
+HOOK_ringMouseData RingMouseData;
+CRITICAL_SECTION cs;
+
+
+
+
+
+
 
 
 LRESULT CALLBACK HOOK_LowLevelMouseProc(int nCode, WPARAM wParam, LPARAM lParam) {
     if(nCode < 0) return CallNextHookEx(NULL, nCode, wParam, lParam);
-
-    // nếu buffer đầy thì chuyển sang buffer dự phòng
-    if(HOOK_bufferCount[HOOK_currentBuffer] >= WRITE_BUFFER_SIZE){
-      HOOK_isBufferFull[HOOK_currentBuffer] = 1;
-      HOOK_currentBuffer =HOOK_currentBuffer ? 0:1;
-    } 
-    uint8_t i = HOOK_currentBuffer;
-    HOOK_bufferMsgId[HOOK_bufferCount[i]][i] = (uint32_t)wParam;
-    HOOK_buffermouse[HOOK_bufferCount[i]][i] = *(MSLLHOOKSTRUCT *)lParam;
-    HOOK_bufferCount[i]++;
+    EnterCriticalSection(&cs);
+    uint32_t index=0;
+    uint8_t result = HOOK_FUNC_addWrite_RingMouseData(&RingMouseData, &index);
+    if(!result){
+      // Successfully added write index
+      RingMouseData.HOOK_buffermouse[index].x = ((MSLLHOOKSTRUCT*)lParam)->pt.x;
+      RingMouseData.HOOK_buffermouse[index].y = ((MSLLHOOKSTRUCT*)lParam)->pt.y;
+      RingMouseData.HOOK_buffermouse[index].mouseData = ((MSLLHOOKSTRUCT*)lParam)->mouseData;
+      RingMouseData.HOOK_buffermouse[index].time = ((MSLLHOOKSTRUCT*)lParam)->time;
+      RingMouseData.HOOK_buffermouse[index].MsgId = (uint32_t)wParam;
+    }
+    LeaveCriticalSection(&cs);
 
     return CallNextHookEx(NULL, nCode, wParam, lParam);
 };
 
 DWORD WINAPI HOOK_writeMouseLogThread(LPVOID lpParameter){
-  while(!HOOK_isBufferFull[0] && !HOOK_isBufferFull[1]) Sleep(10);
+  static uint32_t fileIndex = 0;
+  uint16_t count = 10000;
+  while(1){
 
-  int index;
-  if(HOOK_isBufferFull[0]) index = 0;
-  else if(HOOK_isBufferFull[1]) index = 1;
-  else return 1;
+    _mkdir("log");
+    char filename[64];
+    sprintf(filename, "log/mouse_log%u.csv", fileIndex++);
+    FILE* logFile = fopen(filename, "w");
+    if (!logFile) {
+        printf("Loi: Khong the mo file %s. Kiem tra thu muc 'log'.\n", filename);
+        return 2;
+    }
 
-  _mkdir("log");
-  char filename[64];
-  sprintf(filename, "log/mouse_log%d.log", HOOK_logIndex++);
-  FILE* logFile = fopen(filename, "a");
-  if (!logFile) {
-      printf("Loi: Khong the mo file %s. Kiem tra thu muc 'log'.\n", filename);
-      return 2;
-  }
-
-  int screenWidth  = GetSystemMetrics(SM_CXSCREEN);
-  int screenHeight = GetSystemMetrics(SM_CYSCREEN);
-  SYSTEMTIME st;
-  GetLocalTime(&st);
-  fprintf(logFile,
-      "version = 1\n"
-      "startTime = %04d-%02d-%02d %02d:%02d:%02d.%03d\n"
-      "screenWidth = %d\n"
-      "screenHeight = %d\n"
-      "----------------------------------------\n",
-      st.wYear, st.wMonth, st.wDay, st.wHour, st.wMinute, st.wSecond, st.wMilliseconds,
-      screenWidth,
-      screenHeight
-  );
-
-  for(uint16_t i=0; i<WRITE_BUFFER_SIZE; i++){
+    int screenWidth  = GetSystemMetrics(SM_CXSCREEN);
+    int screenHeight = GetSystemMetrics(SM_CYSCREEN);
+    SYSTEMTIME st;
+    GetLocalTime(&st);
     fprintf(logFile,
-            "Event %d: MsgID=%u, Time=%lu, X=%ld, Y=%ld, MouseData=%lu, Flags=%lu, TimeStamp=%lu\n",
-            i,
-            HOOK_bufferMsgId[i][index],
-            HOOK_buffermouse[i][index].time,
-            HOOK_buffermouse[i][index].pt.x,
-            HOOK_buffermouse[i][index].pt.y,
-            HOOK_buffermouse[i][index].mouseData,
-            HOOK_buffermouse[i][index].flags,
-            HOOK_buffermouse[i][index].time
-        );
+        "version,1,startTime,%04d-%02d-%02d %02d:%02d:%02d.%03d,screenWidth,%d,screenHeight,%d\n",
+        st.wYear, st.wMonth, st.wDay, st.wHour, st.wMinute, st.wSecond, st.wMilliseconds,
+        screenWidth,
+        screenHeight
+    );
+    fprintf(logFile, "Event,MsgID,Time,X,Y,MouseData\n");
+    uint16_t i = 0;
+    uint32_t index = 0;
+    uint8_t result = 1;
+    while(i<count){
+      EnterCriticalSection(&cs);
+      result = HOOK_FUNC_addRead_RingMouseData(&RingMouseData, &index);
+      LeaveCriticalSection(&cs);
+      if(!result){
+        // successfully read data
+        fprintf(logFile,
+              "%x,%x,%x,%x,%x,%x\n",
+              i,
+              RingMouseData.HOOK_buffermouse[index].MsgId,
+              RingMouseData.HOOK_buffermouse[index].time,
+              RingMouseData.HOOK_buffermouse[index].x,
+              RingMouseData.HOOK_buffermouse[index].y,
+              RingMouseData.HOOK_buffermouse[index].mouseData
+              );
+        i++;
+      }else{
+        // buffer empty
+        Sleep(1);
+      }
+    }
+    fclose(logFile);
   }
-  fclose(logFile);
+
   return 0;
 };
 
 
 int main() {
-    
-    HHOOK myhook = SetWindowsHookExA(WH_MOUSE_LL, &HOOK_LowLevelMouseProc, NULL, 0); // Ví dụ gọi hàm Set
+    InitializeCriticalSection(&cs);
+    HHOOK myhook = SetWindowsHookExA(WH_MOUSE_LL, &HOOK_LowLevelMouseProc, NULL, 0);
     HANDLE myThread = CreateThread(NULL, 0, &HOOK_writeMouseLogThread, NULL, 0, NULL);   
 
     MSG msg;
@@ -91,6 +129,7 @@ int main() {
 
     UnhookWindowsHookEx(myhook);
     CloseHandle(myThread);
+    DeleteCriticalSection(&cs);
 }
 
 

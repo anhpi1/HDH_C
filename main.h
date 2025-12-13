@@ -13,7 +13,7 @@
 
 // các cài đặt chính
 #define DEUG_MODE             1               // Bật chế độ debug (1: Bật, 0: Tắt)
-#define WRITE_BUFFER_SIZE    128           // Kích thước buffer ghi file log
+
 
 
 /**
