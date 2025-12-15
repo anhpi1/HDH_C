@@ -6,29 +6,21 @@
 #include <stdint.h>
 #include <stdio.h>
 #include <direct.h>
-#define WRITE_BUFFER_SIZE    100000           // Kích thước buffer ghi file log
 
-typedef struct {
-  LONG  x;            // Tọa độ X
-  LONG  y;            // Tọa độ Y
-  DWORD mouseData;   // Scroll delta hoặc giá trị XButton
-  DWORD time;
-  uint32_t MsgId;
-} HOOK_rawMouseData;
+#define MAX_EVENTS_PER_FILE 10000  // Số sự kiện tối đa mỗi file
+#define DEBUG 0
 
-typedef struct {
-  uint32_t pRead;
-  uint32_t pWrite;
-  HOOK_rawMouseData HOOK_buffermouse[WRITE_BUFFER_SIZE];
-} HOOK_ringMouseData;
-
-extern HOOK_ringMouseData RingMouseData;
+extern FILE* g_logFile;
+extern uint32_t g_fileIndex;
+extern uint32_t g_eventCount;
 extern CRITICAL_SECTION cs;
+extern volatile BOOL g_running;
 
-uint8_t HOOK_FUNC_addRead_RingMouseData(HOOK_ringMouseData* ring, uint32_t *address);
-uint8_t HOOK_FUNC_addWrite_RingMouseData(HOOK_ringMouseData* ring, uint32_t *address);
+
+void HOOK_InitLogFile();
+void HOOK_CloseLogFile();
 LRESULT CALLBACK HOOK_LowLevelMouseProc(int nCode, WPARAM wParam, LPARAM lParam);
-DWORD WINAPI HOOK_writeMouseLogThread(LPVOID lpParameter);
+LRESULT CALLBACK HOOK_LowLevelKeyboardProc(int nCode, WPARAM wParam, LPARAM lParam);
 
 
 // Thư viện hook_handler - Khai báo các hàm xử lý hook (chưa có hàm nào)
