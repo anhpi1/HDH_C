@@ -1,12 +1,14 @@
 #include "main.h"
 
-CRITICAL_SECTION cs;
+CRITICAL_SECTION csMouse;
+CRITICAL_SECTION csKeyboard;
 
 int main() {
-    printf("=== Chuong trinh ghi log chuot ===\n");
+    printf("=== Chuong trinh ghi log chuot va ban phim===\n");
     printf("Nhan F12 de thoat chuong trinh\n\n");
     
-    InitializeCriticalSection(&cs);
+    InitializeCriticalSection(&csMouse);
+    InitializeCriticalSection(&csKeyboard);
     
     // Khởi tạo file log đầu tiên
     HOOK_InitLogFile();
@@ -34,7 +36,8 @@ int main() {
     HOOK_CloseLogFile();
     UnhookWindowsHookEx(mouseHook);
     UnhookWindowsHookEx(keyboardHook);
-    DeleteCriticalSection(&cs);
+    DeleteCriticalSection(&csMouse);
+    DeleteCriticalSection(&csKeyboard);
     
     printf("Chuong trinh da ket thuc\n");
     return 0;

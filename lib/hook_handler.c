@@ -1,31 +1,44 @@
 #include "hook_handler.h"
 
-FILE* g_logFile = NULL;
-uint32_t g_fileIndex = 0;
-uint32_t g_eventCount = 0;
+FILE* g_logFileMouse = NULL;
+FILE* g_logFileKeyboard = NULL;
+uint32_t g_fileIndexMouse = 0;
+uint32_t g_fileIndexKeyboard = 0;
+uint32_t g_eventCountMouse = 0;
+uint32_t g_eventCountKeyboard = 0;
 volatile BOOL g_running = TRUE;
 
-
 void HOOK_InitLogFile() {
-    if (g_logFile) {
-        fclose(g_logFile);
-    }
-
+    if (g_logFileMouse) fclose(g_logFileMouse);
+    if (g_logFileKeyboard) fclose(g_logFileKeyboard);
+    
     _mkdir("log");
-    char filename[64];
-    FILE* testFile = NULL;
+    char filenameMouse[64];
+    char filenameKeyboard[64];
+    FILE* testFileMouse = NULL;
+    FILE* testFileKeyboard = NULL;
     do {
-        sprintf(filename, "log/mouse_log%u.csv", g_fileIndex++);
-        testFile = fopen(filename, "r");
-        if (testFile) {
-            fclose(testFile);
+        sprintf(filenameMouse, "log/mouse_log%u.csv", g_fileIndexMouse++);
+        sprintf(filenameKeyboard, "log/keyboard_log%u.csv", g_fileIndexKeyboard++);
+        testFileMouse = fopen(filenameMouse, "r");
+        testFileKeyboard = fopen(filenameKeyboard, "r");
+        if (testFileMouse) {
+            fclose(testFileMouse);
         }
-    } while (testFile != NULL);
+        if (testFileKeyboard) {
+            fclose(testFileKeyboard);
+        }
+    } while (testFileMouse != NULL || testFileKeyboard != NULL);
 
-    g_logFile = fopen(filename, "w");
+    g_logFileMouse = fopen(filenameMouse, "w");
+    g_logFileKeyboard = fopen(filenameKeyboard, "w");
 
-    if (!g_logFile) {
-        printf("Loi: Khong the mo file %s\n", filename);
+    if (!g_logFileMouse) {
+        printf("Loi: Khong the mo file %s\n", filenameMouse);
+        return;
+    }
+    if (!g_logFileKeyboard) {
+        printf("Loi: Khong the mo file %s\n", filenameKeyboard);
         return;
     }
 
@@ -34,43 +47,54 @@ void HOOK_InitLogFile() {
     SYSTEMTIME st;
     GetLocalTime(&st);
 
-    fprintf(g_logFile,
+    fprintf(g_logFileMouse,
         "version,1,startTime,%04d-%02d-%02d %02d:%02d:%02d.%03d,screenWidth,%d,screenHeight,%d\n",
         st.wYear, st.wMonth, st.wDay, st.wHour, st.wMinute, st.wSecond, st.wMilliseconds,
         screenWidth, screenHeight
     );
-    fprintf(g_logFile, "Event,MsgID,Time,X,Y,MouseData\n");
-    fflush(g_logFile);
-    g_eventCount = 0;
+    fprintf(g_logFileKeyboard,
+        "version,1,startTime,%04d-%02d-%02d %02d:%02d:%02d.%03d,screenWidth,%d,screenHeight,%d\n",
+        st.wYear, st.wMonth, st.wDay, st.wHour, st.wMinute, st.wSecond, st.wMilliseconds,
+        screenWidth, screenHeight
+    );
+    fprintf(g_logFileMouse, "Event(uint),MsgID(hex),Time(uint),X(int),Y(int),MouseData(hex)\n");
+    fprintf(g_logFileKeyboard, "Event(uint),MsgID(hex),Time(uint),VkCode(hex),ScanCode(hex),Flags(hex)\n");
+    fflush(g_logFileMouse);
+    fflush(g_logFileKeyboard);
+    g_eventCountMouse = 0;
+    g_eventCountKeyboard = 0;
 
-    printf("Da tao file log: %s\n", filename);
+    printf("Da tao file log: %s\n", filenameMouse);
+    printf("Da tao file log: %s\n", filenameKeyboard);
 }
 
 
 void HOOK_CloseLogFile() {
-    if (g_logFile) {
-        fclose(g_logFile);
-        g_logFile = NULL;
+    if (g_logFileMouse) {
+        fclose(g_logFileMouse);
+        g_logFileMouse = NULL;
+    }
+    if (g_logFileKeyboard) {
+        fclose(g_logFileKeyboard);
+        g_logFileKeyboard = NULL;
     }
 }
 
 LRESULT CALLBACK HOOK_LowLevelMouseProc(int nCode, WPARAM wParam, LPARAM lParam) {
-    if (nCode < 0 || !g_running) {
-        return CallNextHookEx(NULL, nCode, wParam, lParam);
-    }
+    if (nCode < 0 || !g_running) return CallNextHookEx(NULL, nCode, wParam, lParam);
     
-    EnterCriticalSection(&cs);
+    EnterCriticalSection(&csMouse);
     
     // Tạo file mới nếu chưa có hoặc đã đủ số sự kiện
-    if (!g_logFile || g_eventCount >= MAX_EVENTS_PER_FILE) {
+    if (!g_logFileMouse || g_eventCountMouse >= MAX_EVENTS_PER_FILE) {
         HOOK_InitLogFile();
     }
     
-    if (g_logFile) {
+    if (g_logFileMouse) {
         MSLLHOOKSTRUCT* mouseInfo = (MSLLHOOKSTRUCT*)lParam;
         
-          fprintf(g_logFile, "%u,%ld,%lu,%ld,%ld,%lu\n",
-              g_eventCount,
+          fprintf(g_logFileMouse, "%u,%x,%lu,%ld,%ld,%x\n",
+              g_eventCountMouse,
               (uint32_t)wParam,
               mouseInfo->time,
               mouseInfo->pt.x,
@@ -78,11 +102,11 @@ LRESULT CALLBACK HOOK_LowLevelMouseProc(int nCode, WPARAM wParam, LPARAM lParam)
               mouseInfo->mouseData
           );
         
-        g_eventCount++;
+        g_eventCountMouse++;
         
         // Flush mỗi 100 sự kiện để đảm bảo dữ liệu được ghi
-        if (g_eventCount % 100 == 0) {
-            fflush(g_logFile);
+        if (g_eventCountMouse % 100 == 0) {
+            fflush(g_logFileMouse);
         }
         #if DEBUG
         printf("Mouse Event: MsgId=%u, X=%ld, Y=%ld, MouseData=%lu, Time=%lu\n",
@@ -95,20 +119,60 @@ LRESULT CALLBACK HOOK_LowLevelMouseProc(int nCode, WPARAM wParam, LPARAM lParam)
         #endif
     }
     
-    LeaveCriticalSection(&cs);
+    LeaveCriticalSection(&csMouse);
     return CallNextHookEx(NULL, nCode, wParam, lParam);
 }
 
 LRESULT CALLBACK HOOK_LowLevelKeyboardProc(int nCode, WPARAM wParam, LPARAM lParam) {
-    if (nCode >= 0) {
-        KBDLLHOOKSTRUCT* kbInfo = (KBDLLHOOKSTRUCT*)lParam;
-        
-        // Kiểm tra nếu phím F12 được nhấn
-        if (wParam == WM_KEYDOWN && kbInfo->vkCode == VK_F12) {
+    if (nCode < 0 || !g_running) return CallNextHookEx(NULL, nCode, wParam, lParam);
+    KBDLLHOOKSTRUCT* keyboardInfo = (KBDLLHOOKSTRUCT*)lParam;
+    // Bỏ qua F12 (phím thoát) để không ghi vào log
+    if (keyboardInfo->vkCode == VK_F12) {
+        // Nếu là F12 và nhấn xuống thì thoát chương trình
+        if (wParam == WM_KEYDOWN) {
             printf("\nNhan F12 - Dang thoat chuong trinh...\n");
             g_running = FALSE;
             PostQuitMessage(0);
         }
+        return CallNextHookEx(NULL, nCode, wParam, lParam);
     }
+
+    EnterCriticalSection(&csKeyboard);
+
+    // Tạo file mới nếu chưa có hoặc đã đủ số sự kiện
+    if (!g_logFileKeyboard || g_eventCountKeyboard >= MAX_EVENTS_PER_FILE) {
+        HOOK_InitLogFile();
+    }
+
+    if (g_logFileKeyboard) {
+        
+        
+          fprintf(g_logFileKeyboard, "%u,%x,%lu,%x,%x,%x\n",
+              g_eventCountKeyboard,
+              (uint32_t)wParam,
+              keyboardInfo->time,
+              keyboardInfo->vkCode,
+              keyboardInfo->scanCode,
+              keyboardInfo->flags
+          );
+        
+        g_eventCountKeyboard++;
+        
+        // Flush mỗi 100 sự kiện để đảm bảo dữ liệu được ghi
+        if (g_eventCountKeyboard % 100 == 0) {
+            fflush(g_logFileKeyboard);
+        }
+        #if DEBUG
+        printf("Keyboard Event: MsgId=%u, VkCode=%x, ScanCode=%x, Flags=%x, Time=%lu\n",
+            (uint32_t)wParam,
+            keyboardInfo->vkCode,
+            keyboardInfo->scanCode,
+            keyboardInfo->flags,
+            keyboardInfo->time
+        );
+        #endif
+    }
+
+    LeaveCriticalSection(&csMouse);
     return CallNextHookEx(NULL, nCode, wParam, lParam);
 }
