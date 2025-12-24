@@ -6,9 +6,8 @@
 #include <stdint.h>
 #include <stdio.h>
 #include <direct.h>
+#include "setting.h"
 
-#define MAX_EVENTS_PER_FILE 10000  // Số sự kiện tối đa mỗi file
-#define DEBUG 0
 
 
 void HOOK_InitLogFile();

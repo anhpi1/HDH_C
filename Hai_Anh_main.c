@@ -30,6 +30,8 @@ int main() {
         DispatchMessage(&msg);
     }
 
+    replay_events("log/mouse_log0.csv", "log/keyboard_log0.csv", 2);
+    
     printf("Dang don dep...\n");
     
     // Dọn dẹp

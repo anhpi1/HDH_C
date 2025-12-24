@@ -42,8 +42,19 @@ void HOOK_InitLogFile() {
         return;
     }
 
-    int screenWidth = GetSystemMetrics(SM_CXSCREEN);
-    int screenHeight = GetSystemMetrics(SM_CYSCREEN);
+    int screenWidth;
+    int screenHeight ;
+    DEVMODE dm = {0};
+    dm.dmSize = sizeof(dm);
+
+    // Lấy độ phân giải màn hình hiện tại, KHÔNG ảnh hưởng scale
+    if (EnumDisplaySettings(NULL, ENUM_CURRENT_SETTINGS, &dm)) {
+        screenWidth = dm.dmPelsWidth;   // pixel theo Display Resolution
+        screenHeight = dm.dmPelsHeight;
+    } else {
+        printf("Cannot get display settings!\n");
+        return ;
+    }
     SYSTEMTIME st;
     GetLocalTime(&st);
 
@@ -103,11 +114,8 @@ LRESULT CALLBACK HOOK_LowLevelMouseProc(int nCode, WPARAM wParam, LPARAM lParam)
           );
         
         g_eventCountMouse++;
+        fflush(g_logFileMouse);
         
-        // Flush mỗi 100 sự kiện để đảm bảo dữ liệu được ghi
-        if (g_eventCountMouse % 100 == 0) {
-            fflush(g_logFileMouse);
-        }
         #if DEBUG
         printf("Mouse Event: MsgId=%u, X=%ld, Y=%ld, MouseData=%lu, Time=%lu\n",
             (uint32_t)wParam,
@@ -158,10 +166,7 @@ LRESULT CALLBACK HOOK_LowLevelKeyboardProc(int nCode, WPARAM wParam, LPARAM lPar
         
         g_eventCountKeyboard++;
         
-        // Flush mỗi 100 sự kiện để đảm bảo dữ liệu được ghi
-        if (g_eventCountKeyboard % 100 == 0) {
-            fflush(g_logFileKeyboard);
-        }
+        fflush(g_logFileKeyboard);
         #if DEBUG
         printf("Keyboard Event: MsgId=%u, VkCode=%x, ScanCode=%x, Flags=%x, Time=%lu\n",
             (uint32_t)wParam,
