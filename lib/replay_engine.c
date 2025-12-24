@@ -5,7 +5,7 @@
 
 
 // Hàm giải mã flags chuột (Giữ nguyên logic của bạn nhưng làm gọn)
-int decode_mouse_flags(const uint32_t msgID, DWORD *dwFlags) {
+int HOOK_decode_mouse_flags(const uint32_t msgID, DWORD *dwFlags) {
     *dwFlags = MOUSEEVENTF_ABSOLUTE; // Luôn dùng toạ độ tuyệt đối
     switch (msgID) {
         case WM_LBUTTONDOWN: *dwFlags |= MOUSEEVENTF_LEFTDOWN; break;
@@ -19,7 +19,7 @@ int decode_mouse_flags(const uint32_t msgID, DWORD *dwFlags) {
     return 0;
 }
 
-int replay_events(const char* mouse_log_file, const char* keyboard_log_file, int mode) {
+int HOOK_replay_events(const char* mouse_log_file, const char* keyboard_log_file, int mode) {
     ReplayContext ctx = {0};
     char buffer[512];
 
@@ -147,7 +147,7 @@ int replay_events(const char* mouse_log_file, const char* keyboard_log_file, int
             input.mi.dy = (mouseData.pt.y * 65535) / (ctx.screenHeight - 1);
             input.mi.mouseData = mouseData.mouseData;
             input.mi.time = 0; // Để Windows tự gán timestamp hiện tại
-            decode_mouse_flags(mouseMsgId, &input.mi.dwFlags);
+            HOOK_decode_mouse_flags(mouseMsgId, &input.mi.dwFlags);
             
             SendInput(1, &input, sizeof(INPUT));
             has_mouse_event = 0; // Đánh dấu đã dùng xong sự kiện này

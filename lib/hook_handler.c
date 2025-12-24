@@ -7,6 +7,8 @@ uint32_t g_fileIndexKeyboard = 0;
 uint32_t g_eventCountMouse = 0;
 uint32_t g_eventCountKeyboard = 0;
 volatile BOOL g_running = TRUE;
+CRITICAL_SECTION csMouse;
+CRITICAL_SECTION csKeyboard;
 
 void HOOK_InitLogFile() {
     if (g_logFileMouse) fclose(g_logFileMouse);
@@ -80,7 +82,10 @@ void HOOK_InitLogFile() {
 }
 
 
-void HOOK_CloseLogFile() {
+void HOOK_stop_recording(void) {
+    printf("Dang thoat chuong trinh...\n");
+    g_running = FALSE;
+    PostQuitMessage(0);
     if (g_logFileMouse) {
         fclose(g_logFileMouse);
         g_logFileMouse = NULL;
@@ -134,16 +139,6 @@ LRESULT CALLBACK HOOK_LowLevelMouseProc(int nCode, WPARAM wParam, LPARAM lParam)
 LRESULT CALLBACK HOOK_LowLevelKeyboardProc(int nCode, WPARAM wParam, LPARAM lParam) {
     if (nCode < 0 || !g_running) return CallNextHookEx(NULL, nCode, wParam, lParam);
     KBDLLHOOKSTRUCT* keyboardInfo = (KBDLLHOOKSTRUCT*)lParam;
-    // Bỏ qua F12 (phím thoát) để không ghi vào log
-    if (keyboardInfo->vkCode == VK_F12) {
-        // Nếu là F12 và nhấn xuống thì thoát chương trình
-        if (wParam == WM_KEYDOWN) {
-            printf("\nNhan F12 - Dang thoat chuong trinh...\n");
-            g_running = FALSE;
-            PostQuitMessage(0);
-        }
-        return CallNextHookEx(NULL, nCode, wParam, lParam);
-    }
 
     EnterCriticalSection(&csKeyboard);
 
@@ -180,4 +175,43 @@ LRESULT CALLBACK HOOK_LowLevelKeyboardProc(int nCode, WPARAM wParam, LPARAM lPar
 
     LeaveCriticalSection(&csMouse);
     return CallNextHookEx(NULL, nCode, wParam, lParam);
+}
+
+int HOOK_start_recording(void) {
+    printf("=== Chuong trinh ghi log chuot va ban phim===\n");
+    printf("Nhan F12 de thoat chuong trinh\n\n");
+    
+    InitializeCriticalSection(&csMouse);
+    InitializeCriticalSection(&csKeyboard);
+    
+    // Khởi tạo file log đầu tiên
+    HOOK_InitLogFile();
+    
+    // Cài đặt hook chuột và bàn phím
+    HHOOK mouseHook = SetWindowsHookExA(WH_MOUSE_LL, &HOOK_LowLevelMouseProc, NULL, 0);
+    HHOOK keyboardHook = SetWindowsHookExA(WH_KEYBOARD_LL, &HOOK_LowLevelKeyboardProc, NULL, 0);
+    
+    if (!mouseHook || !keyboardHook) {
+        printf("Loi: Khong the cai dat hook!\n");
+        return 1;
+    }
+    
+    printf("Hook da duoc cai dat thanh cong\n");
+
+    MSG msg;
+    while (GetMessage(&msg, NULL, 0, 0) > 0) {
+        TranslateMessage(&msg);
+        DispatchMessage(&msg);
+    }
+    
+    printf("Dang don dep...\n");
+    
+    
+    UnhookWindowsHookEx(mouseHook);
+    UnhookWindowsHookEx(keyboardHook);
+    DeleteCriticalSection(&csMouse);
+    DeleteCriticalSection(&csKeyboard);
+    
+    printf("Chuong trinh da ket thuc\n");
+    return 0;
 }

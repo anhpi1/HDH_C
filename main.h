@@ -9,7 +9,7 @@
 #include "lib/hook_handler.h"
 #include "lib/logger.h"
 #include "lib/replay_engine.h"
-#include "lib/write_to_SQL.h"
+#include "lib/setting.h"
 
 // các cài đặt chính
 #define DEUG_MODE             1               // Bật chế độ debug (1: Bật, 0: Tắt)
