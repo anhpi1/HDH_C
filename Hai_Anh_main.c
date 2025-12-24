@@ -41,5 +41,5 @@ int main() {
 // HOOK_replay_events("log/mouse_log0.csv", "log/keyboard_log0.csv", 2);
 // return 0;
 // }
-// cái này truyền vào có tham số tham số cuối dùng là mode 0 
-// là chỉ phát chuột 1 là chỉ phát bàn phím 2 là phát cả hai viết client.c có menu để test
+// yêu càu phải gửi đầy đủ tham số của hàm HOOK_replay_events 
+//mode 0 là chỉ phát chuột 1 là chỉ phát bàn phím 2 là phát cả hai viết client.c có menu để test
