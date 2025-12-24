@@ -19,16 +19,6 @@ int decode_mouse_flags(const uint32_t msgID, DWORD *dwFlags) {
     return 0;
 }
 
-// Hàm bỏ qua header của file log
-void skip_log_header(FILE* f) {
-    if (!f) return;
-    char buffer[512];
-    // Dòng 1: Version/Info
-    fgets(buffer, sizeof(buffer), f);
-    // Dòng 2: Header cột (Index, MsgID...)
-    fgets(buffer, sizeof(buffer), f);
-}
-
 int replay_events(const char* mouse_log_file, const char* keyboard_log_file, int mode) {
     ReplayContext ctx = {0};
     char buffer[512];
@@ -61,8 +51,14 @@ int replay_events(const char* mouse_log_file, const char* keyboard_log_file, int
     // Các file khác cần skip full header.
     fgets(buffer, sizeof(buffer), headerFile); 
 
-    if (ctx.mouse_log_file && ctx.mouse_log_file != headerFile) skip_log_header(ctx.mouse_log_file);
-    if (ctx.keyboard_log_file && ctx.keyboard_log_file != headerFile) skip_log_header(ctx.keyboard_log_file);
+    if (ctx.mouse_log_file && ctx.mouse_log_file != headerFile) {
+        fgets(buffer, sizeof(buffer), ctx.mouse_log_file);
+        fgets(buffer, sizeof(buffer), ctx.mouse_log_file);
+    }
+    if (ctx.keyboard_log_file && ctx.keyboard_log_file != headerFile) {
+        fgets(buffer, sizeof(buffer), ctx.keyboard_log_file);
+        fgets(buffer, sizeof(buffer), ctx.keyboard_log_file);
+    }
 
     // 3. Biến lưu trữ dữ liệu tạm
     MSLLHOOKSTRUCT mouseData = {0};
