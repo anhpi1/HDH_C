@@ -1,39 +1,30 @@
 #ifndef SERVER_H
 #define SERVER_H
 
-#include <winsock2.h>
-#include <ws2tcpip.h>
 #include <windows.h>
 #include <stdio.h>
+#include "hook_handler.h"
+#include "replay_engine.h"
 
-#pragma comment(lib, "ws2_32.lib")
+#define THREAD_max_sevice 3 
+#define PIPE_NAME "\\\\.\\pipe\\MyPipe"
 
-#define SERVER_PORT 8888
-#define BUFFER_SIZE 1024
-#define MAX_PATH_LEN 256
-
-// Các lệnh từ client
-typedef enum {
-    CMD_START_RECORDING = 1,
-    CMD_STOP_RECORDING = 2,
-    CMD_REPLAY = 3,              // Phát lại với tham số đầy đủ
-    CMD_EXIT = 0
-} ServerCommand;
-
-// Cấu trúc để gửi tham số replay
 typedef struct {
-    char mouse_log_file[MAX_PATH_LEN];
-    char keyboard_log_file[MAX_PATH_LEN];
-    int mode;  // 0: chỉ chuột, 1: chỉ bàn phím, 2: cả hai
-} ReplayParams;
+    HANDLE hPipe;
+    HANDLE hThreads[THREAD_max_sevice]; 
+    uint8_t num_threads;
+    HANDLE hMutexNumThreads;
+    char mouse_file[256];
+    char key_file[256];
+    int mode;
+} ServerHandle;
 
-// Khởi động server
-int SERVER_start();
-
-// Xử lý client
-void SERVER_handle_client(SOCKET clientSocket);
-
-// Dừng server
-void SERVER_stop();
+DWORD WINAPI ThreadFunc1(LPVOID lpParam);
+DWORD WINAPI ThreadFunc2(LPVOID lpParam);
+DWORD WINAPI ThreadFunc3(LPVOID lpParam);
+int HOOK_Server_thread_open(ServerHandle *Server);
+int HOOK_Server_thread_close(ServerHandle *Server);
+int HOOK_Server_init(ServerHandle *Server);
+int HOOK_Server_start(ServerHandle *Server);
 
 #endif // SERVER_H

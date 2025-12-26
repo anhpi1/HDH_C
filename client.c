@@ -1,239 +1,147 @@
-#include <winsock2.h>
-#include <ws2tcpip.h>
 #include <windows.h>
 #include <stdio.h>
-#include <stdlib.h>
 #include <string.h>
 
-#pragma comment(lib, "ws2_32.lib")
+// Đảm bảo tên PIPE này KHỚP CHÍNH XÁC với PIPE_NAME trong server.h của bạn
+#define PIPE_NAME "\\\\.\\pipe\\MyPipe" 
+#define BUFFER_SIZE 128
 
-#define SERVER_IP "127.0.0.1"
-#define SERVER_PORT 8888
-#define BUFFER_SIZE 1024
-#define MAX_PATH_LEN 256
-
-typedef enum {
-    CMD_START_RECORDING = 1,
-    CMD_STOP_RECORDING = 2,
-    CMD_REPLAY = 3,              // Phát lại với tham số đầy đủ
-    CMD_EXIT = 0
-} ClientCommand;
-
-// Cấu trúc để gửi tham số replay
-typedef struct {
-    char mouse_log_file[MAX_PATH_LEN];
-    char keyboard_log_file[MAX_PATH_LEN];
-    int mode;  // 0: chỉ chuột, 1: chỉ bàn phím, 2: cả hai
-} ReplayParams;
-
-SOCKET clientSocket = INVALID_SOCKET;
-
-int connect_to_server() {
-    WSADATA wsaData;
-    struct sockaddr_in serverAddr;
-    
-    // Khởi tạo Winsock
-    if (WSAStartup(MAKEWORD(2, 2), &wsaData) != 0) {
-        printf("[CLIENT] Loi khoi tao Winsock. Error: %d\n", WSAGetLastError());
-        return -1;
-    }
-    
-    // Tạo socket
-    clientSocket = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
-    if (clientSocket == INVALID_SOCKET) {
-        printf("[CLIENT] Loi tao socket. Error: %d\n", WSAGetLastError());
-        WSACleanup();
-        return -1;
-    }
-    
-    // Cấu hình địa chỉ server
-    serverAddr.sin_family = AF_INET;
-    serverAddr.sin_port = htons(SERVER_PORT);
-    inet_pton(AF_INET, SERVER_IP, &serverAddr.sin_addr);
-    
-    // Kết nối đến server
-    if (connect(clientSocket, (struct sockaddr*)&serverAddr, sizeof(serverAddr)) == SOCKET_ERROR) {
-        printf("[CLIENT] Khong the ket noi den server. Error: %d\n", WSAGetLastError());
-        printf("[CLIENT] Hay dam bao server dang chay!\n");
-        closesocket(clientSocket);
-        WSACleanup();
-        return -1;
-    }
-    
-    printf("[CLIENT] Ket noi thanh cong den server %s:%d\n", SERVER_IP, SERVER_PORT);
-    return 0;
-}
-
-int send_replay_command(const char* mouse_log, const char* keyboard_log, int mode) {
-    char buffer[BUFFER_SIZE];
-    char response[BUFFER_SIZE];
-    int recvSize;
-    
-    // Gửi lệnh CMD_REPLAY
-    sprintf(buffer, "%d", CMD_REPLAY);
-    if (send(clientSocket, buffer, strlen(buffer), 0) == SOCKET_ERROR) {
-        printf("[CLIENT] Loi gui lenh replay. Error: %d\n", WSAGetLastError());
-        return -1;
-    }
-    
-    // Nhận phản hồi READY
-    recvSize = recv(clientSocket, response, BUFFER_SIZE - 1, 0);
-    if (recvSize > 0) {
-        response[recvSize] = '\0';
-        printf("[SERVER RESPONSE] %s\n", response);
-    }
-    
-    // Gửi tham số ReplayParams
-    ReplayParams params;
-    strncpy(params.mouse_log_file, mouse_log, MAX_PATH_LEN - 1);
-    params.mouse_log_file[MAX_PATH_LEN - 1] = '\0';
-    strncpy(params.keyboard_log_file, keyboard_log, MAX_PATH_LEN - 1);
-    params.keyboard_log_file[MAX_PATH_LEN - 1] = '\0';
-    params.mode = mode;
-    
-    if (send(clientSocket, (char*)&params, sizeof(ReplayParams), 0) == SOCKET_ERROR) {
-        printf("[CLIENT] Loi gui tham so replay. Error: %d\n", WSAGetLastError());
-        return -1;
-    }
-    
-    // Nhận phản hồi cuối
-    recvSize = recv(clientSocket, response, BUFFER_SIZE - 1, 0);
-    if (recvSize > 0) {
-        response[recvSize] = '\0';
-        printf("[SERVER RESPONSE] %s\n", response);
-    }
-    
-    return 0;
-}
-
-int send_command(int command) {
-    char buffer[BUFFER_SIZE];
-    char response[BUFFER_SIZE];
-    int recvSize;
-    
-    // Gửi lệnh
-    sprintf(buffer, "%d", command);
-    if (send(clientSocket, buffer, strlen(buffer), 0) == SOCKET_ERROR) {
-        printf("[CLIENT] Loi gui lenh. Error: %d\n", WSAGetLastError());
-        return -1;
-    }
-    
-    // Nhận phản hồi
-    recvSize = recv(clientSocket, response, BUFFER_SIZE - 1, 0);
-    if (recvSize > 0) {
-        response[recvSize] = '\0';
-        printf("[SERVER RESPONSE] %s\n", response);
-    } else if (recvSize == 0) {
-        printf("[CLIENT] Server da dong ket noi.\n");
-        return -1;
-    } else {
-        printf("[CLIENT] Loi nhan phan hoi. Error: %d\n", WSAGetLastError());
-        return -1;
-    }
-    
-    return 0;
-}
-
-void disconnect_from_server() {
-    if (clientSocket != INVALID_SOCKET) {
-        closesocket(clientSocket);
-        clientSocket = INVALID_SOCKET;
-    }
-    WSACleanup();
-    printf("[CLIENT] Da ngat ket noi khoi server.\n");
-}
-
-void show_menu() {
-    printf("\n");
-    printf("========================================\n");
-    printf("       MENU CLIENT - TEST SERVER\n");
-    printf("========================================\n");
-    printf("1. Bat dau ghi su kien\n");
-    printf("2. Dung ghi su kien\n");
-    printf("3. Phat lai voi tham so tu nhap\n");
-    printf("4. Phat lai (mac dinh: mode=2)\n");
-    printf("0. Thoat\n");
-    printf("========================================\n");
-    printf("Chon: ");
+void print_menu() {
+    printf("\n--- CLIENT MENU ---\n");
+    printf("1. START (Ghi lai thao tac)\n");
+    printf("2. STOP (Dung ghi)\n");
+    printf("3. REPLAY (Phat lai thao tac)\n");
+    printf("4. EXIT\n");
+    printf("Chon chuc nang: ");
 }
 
 int main() {
+    HANDLE hPipe;
+    char buffer[BUFFER_SIZE];
+    char response[256];
+    DWORD dwWritten, dwRead;
     int choice;
     
-    // Kết nối đến server
-    if (connect_to_server() != 0) {
-        printf("[CLIENT] Khong the ket noi. Thoat chuong trinh.\n");
-        return 1;
-    }
-    
-    // Menu chính
+    // Các biến để chứa thông tin gửi đi
+    char cmd[32];
+    char mouse_file[64];
+    char key_file[64];
+    int mode = 0;
+
+    printf("Dang ket noi den Server...\n");
+
+    // 1. Kết nối đến Named Pipe
+    // Server phải đang chạy trước khi Client kết nối
     while (1) {
-        show_menu();
-        
+        hPipe = CreateFile(
+            PIPE_NAME,
+            GENERIC_READ | GENERIC_WRITE,
+            0,
+            NULL,
+            OPEN_EXISTING,
+            0,
+            NULL);
+
+        if (hPipe != INVALID_HANDLE_VALUE)
+            break;
+
+        if (GetLastError() != ERROR_PIPE_BUSY) {
+            printf("Khong the ket noi den Server. Hay dam bao Server dang chay.\n");
+            return -1;
+        }
+
+        // Nếu Pipe bận, chờ 2 giây rồi thử lại
+        if (!WaitNamedPipe(PIPE_NAME, 2000)) {
+            printf("Time out khi cho ket noi Pipe.\n");
+            return -1;
+        }
+    }
+
+    printf("Ket noi thanh cong!\n");
+
+    // 2. Vòng lặp xử lý lệnh
+    while (1) {
+        print_menu();
         if (scanf("%d", &choice) != 1) {
-            printf("[CLIENT] Lua chon khong hop le!\n");
-            while (getchar() != '\n'); // Clear input buffer
+            while(getchar() != '\n'); // Xóa bộ nhớ đệm nếu nhập sai
             continue;
         }
-        getchar(); // Clear '\n'
-        
-        if (choice == 0) {
-            printf("[CLIENT] Gui lenh thoat den server...\n");
-            send_command(CMD_EXIT);
-            break;
-        }
-        
+
+        // Đặt giá trị mặc định để tránh lỗi parse bên server
+        strcpy(mouse_file, "none");
+        strcpy(key_file, "none");
+        mode = 0;
+        int should_send = 1;
+
         switch (choice) {
             case 1:
-                printf("[CLIENT] Gui lenh bat dau ghi...\n");
-                send_command(CMD_START_RECORDING);
+                strcpy(cmd, "START");
+                // Mặc định tên file nếu người dùng không muốn nhập
+                printf("Nhap ten file chuot (vd: mouse.log): ");
+                scanf("%s", mouse_file);
+                printf("Nhap ten file phim (vd: key.log): ");
+                scanf("%s", key_file);
                 break;
-                
             case 2:
-                printf("[CLIENT] Gui lenh dung ghi...\n");
-                send_command(CMD_STOP_RECORDING);
+                strcpy(cmd, "STOP");
+                // Lệnh STOP không cần file, nhưng server vẫn parse nên ta để mặc định
                 break;
-                
-            case 3: {
-                char mouse_file[MAX_PATH_LEN];
-                char keyboard_file[MAX_PATH_LEN];
-                int mode;
-                
-                printf("Nhap duong dan file mouse log: ");
-                fgets(mouse_file, MAX_PATH_LEN, stdin);
-                mouse_file[strcspn(mouse_file, "\n")] = '\0';
-                
-                printf("Nhap duong dan file keyboard log: ");
-                fgets(keyboard_file, MAX_PATH_LEN, stdin);
-                keyboard_file[strcspn(keyboard_file, "\n")] = '\0';
-                
-                printf("Nhap mode (0=chi chuot, 1=chi ban phim, 2=ca hai): ");
+            case 3:
+                strcpy(cmd, "REPLAY");
+                printf("Nhap ten file chuot de phat: ");
+                scanf("%s", mouse_file);
+                printf("Nhap ten file phim de phat: ");
+                scanf("%s", key_file);
+                printf("Nhap che do (mode 0/1...): ");
                 scanf("%d", &mode);
-                getchar();
-                
-                printf("[CLIENT] Gui lenh phat lai voi tham so:\n");
-                printf("  Mouse log: %s\n", mouse_file);
-                printf("  Keyboard log: %s\n", keyboard_file);
-                printf("  Mode: %d\n", mode);
-                
-                send_replay_command(mouse_file, keyboard_file, mode);
+                break;
+            case 4:
+                should_send = 0;
+                break;
+            default:
+                printf("Lua chon khong hop le.\n");
+                should_send = 0;
+        }
+
+        if (choice == 4) break;
+
+        if (should_send) {
+            // 3. Định dạng dữ liệu theo cấu trúc Server mong đợi:
+            // "%31s %255s %255s %d" -> CMD MOUSE_FILE KEY_FILE MODE
+            sprintf(buffer, "%s %s %s %d", cmd, mouse_file, key_file, mode);
+
+            // 4. Gửi lệnh đến Server
+            BOOL writeSuccess = WriteFile(
+                hPipe,
+                buffer,
+                strlen(buffer), // Gửi độ dài chuỗi thực tế
+                &dwWritten,
+                NULL);
+
+            if (!writeSuccess) {
+                printf("Loi khi gui du lieu. Server co the da dong.\n");
                 break;
             }
-                
-            case 4:
-                printf("[CLIENT] Gui lenh phat lai voi tham so mac dinh...\n");
-                send_replay_command("log/mouse_log0.csv", "log/keyboard_log0.csv", 2);
-                break;
-                
-            default:
-                printf("[CLIENT] Lua chon khong hop le. Vui long thu lai.\n");
-                break;
+
+            // 5. Đọc phản hồi từ Server
+            BOOL readSuccess = ReadFile(
+                hPipe,
+                response,
+                sizeof(response) - 1,
+                &dwRead,
+                NULL);
+
+            if (readSuccess && dwRead > 0) {
+                response[dwRead] = '\0'; // Kết thúc chuỗi
+                printf("\nServer phan hoi: %s\n", response);
+            } else {
+                printf("Khong nhan duoc phan hoi tu Server.\n");
+            }
         }
     }
-    
-    // Ngắt kết nối
-    disconnect_from_server();
-    
-    printf("[CLIENT] Thoat chuong trinh.\n");
+
+    // 6. Đóng kết nối
+    CloseHandle(hPipe);
+    printf("Da ngat ket noi.\n");
     return 0;
 }

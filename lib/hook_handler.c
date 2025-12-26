@@ -1,5 +1,6 @@
 #include "hook_handler.h"
 
+
 FILE* g_logFileMouse = NULL;
 FILE* g_logFileKeyboard = NULL;
 uint32_t g_fileIndexMouse = 0;
@@ -9,8 +10,21 @@ uint32_t g_eventCountKeyboard = 0;
 volatile BOOL g_running = TRUE;
 CRITICAL_SECTION csMouse;
 CRITICAL_SECTION csKeyboard;
+HHOOK mouseHook = NULL;
+HHOOK keyboardHook = NULL;
+
 
 void HOOK_InitLogFile() {
+    g_logFileMouse = NULL;
+    g_logFileKeyboard = NULL;
+    g_fileIndexMouse = 0;
+    g_fileIndexKeyboard = 0;
+    g_eventCountMouse = 0;
+    g_eventCountKeyboard = 0;
+    g_running = TRUE;
+    InitializeCriticalSection(&csMouse);
+    InitializeCriticalSection(&csKeyboard);
+
     if (g_logFileMouse) fclose(g_logFileMouse);
     if (g_logFileKeyboard) fclose(g_logFileKeyboard);
     
@@ -94,6 +108,15 @@ void HOOK_stop_recording(void) {
         fclose(g_logFileKeyboard);
         g_logFileKeyboard = NULL;
     }
+    printf("Dang don dep...\n");
+    
+    
+    UnhookWindowsHookEx(mouseHook);
+    UnhookWindowsHookEx(keyboardHook);
+    DeleteCriticalSection(&csMouse);
+    DeleteCriticalSection(&csKeyboard);
+    
+    printf("Chuong trinh da ket thuc\n");
 }
 
 LRESULT CALLBACK HOOK_LowLevelMouseProc(int nCode, WPARAM wParam, LPARAM lParam) {
@@ -188,8 +211,8 @@ int HOOK_start_recording(void) {
     HOOK_InitLogFile();
     
     // Cài đặt hook chuột và bàn phím
-    HHOOK mouseHook = SetWindowsHookExA(WH_MOUSE_LL, &HOOK_LowLevelMouseProc, NULL, 0);
-    HHOOK keyboardHook = SetWindowsHookExA(WH_KEYBOARD_LL, &HOOK_LowLevelKeyboardProc, NULL, 0);
+    mouseHook = SetWindowsHookExA(WH_MOUSE_LL, &HOOK_LowLevelMouseProc, NULL, 0);
+    keyboardHook = SetWindowsHookExA(WH_KEYBOARD_LL, &HOOK_LowLevelKeyboardProc, NULL, 0);
     
     if (!mouseHook || !keyboardHook) {
         printf("Loi: Khong the cai dat hook!\n");
@@ -203,15 +226,4 @@ int HOOK_start_recording(void) {
         TranslateMessage(&msg);
         DispatchMessage(&msg);
     }
-    
-    printf("Dang don dep...\n");
-    
-    
-    UnhookWindowsHookEx(mouseHook);
-    UnhookWindowsHookEx(keyboardHook);
-    DeleteCriticalSection(&csMouse);
-    DeleteCriticalSection(&csKeyboard);
-    
-    printf("Chuong trinh da ket thuc\n");
-    return 0;
 }
