@@ -5,9 +5,9 @@
 #include <stdio.h>
 #include "hook_handler.h"
 #include "replay_engine.h"
+#include "setting.h"
 
-#define THREAD_max_sevice 3 
-#define PIPE_NAME "\\\\.\\pipe\\MyPipe"
+
 
 typedef struct {
     HANDLE hPipe;

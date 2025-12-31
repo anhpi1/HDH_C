@@ -201,8 +201,7 @@ LRESULT CALLBACK HOOK_LowLevelKeyboardProc(int nCode, WPARAM wParam, LPARAM lPar
 }
 
 int HOOK_start_recording(void) {
-    printf("=== Chuong trinh ghi log chuot va ban phim===\n");
-    printf("Nhan F12 de thoat chuong trinh\n\n");
+    printf("=== Bat dau ghi log chuot va ban phim===\n");
     
     InitializeCriticalSection(&csMouse);
     InitializeCriticalSection(&csKeyboard);

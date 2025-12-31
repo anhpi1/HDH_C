@@ -1,0 +1,5 @@
+version,1,startTime,2025-12-30 14:25:47.645,screenWidth,1920,screenHeight,1080
+Event(uint),MsgID(hex),Time(uint),VkCode(hex),ScanCode(hex),Flags(hex)
+0,100,522548421,32,3,0
+1,101,522548546,32,3,80
+2,100,522548859,d,1c,0
