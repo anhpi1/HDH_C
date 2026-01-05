@@ -12,6 +12,11 @@ CRITICAL_SECTION csMouse;
 CRITICAL_SECTION csKeyboard;
 HHOOK mouseHook = NULL;
 HHOOK keyboardHook = NULL;
+HOOK_ring_buffer ringMouse;
+HOOK_ring_buffer ringKeyboard;
+HANDLE mouseThread;
+HANDLE keyThread;
+
 
 
 void HOOK_InitLogFile() {
@@ -24,6 +29,8 @@ void HOOK_InitLogFile() {
     g_running = TRUE;
     InitializeCriticalSection(&csMouse);
     InitializeCriticalSection(&csKeyboard);
+    HOOK_FUNC_RingData_INIT(&ringMouse);
+    HOOK_FUNC_RingData_INIT(&ringKeyboard);
 
     if (g_logFileMouse) fclose(g_logFileMouse);
     if (g_logFileKeyboard) fclose(g_logFileKeyboard);
@@ -119,85 +126,123 @@ void HOOK_stop_recording(void) {
     printf("Chuong trinh da ket thuc\n");
 }
 
+
+
 LRESULT CALLBACK HOOK_LowLevelMouseProc(int nCode, WPARAM wParam, LPARAM lParam) {
     if (nCode < 0 || !g_running) return CallNextHookEx(NULL, nCode, wParam, lParam);
     
-    EnterCriticalSection(&csMouse);
+    MSLLHOOKSTRUCT* mouseInfo = (MSLLHOOKSTRUCT*)lParam;
     
-    // Tạo file mới nếu chưa có hoặc đã đủ số sự kiện
-    if (!g_logFileMouse || g_eventCountMouse >= MAX_EVENTS_PER_FILE) {
-        HOOK_InitLogFile();
+    // Allocate và copy data để đẩy vào ring buffer
+    HOOK_MouseEvent* event = (HOOK_MouseEvent*)malloc(sizeof(HOOK_MouseEvent));
+    if (event) {
+        event->index = 0; // Sẽ được gán lại trong thread ghi file
+        event->MsgID = (uint32_t)wParam;
+        event->time = mouseInfo->time;
+        event->mouseData = mouseInfo->mouseData;
+        event->pt = mouseInfo->pt;
+        
+        // Đẩy vào ring buffer (lock-free)
+        if (HOOK_FUNC_Write_RingData(&ringMouse, event) != 0) {
+            // Buffer đầy, giải phóng memory
+            free(event);
+        }
     }
     
-    if (g_logFileMouse) {
-        MSLLHOOKSTRUCT* mouseInfo = (MSLLHOOKSTRUCT*)lParam;
-        
-          fprintf(g_logFileMouse, "%u,%x,%lu,%ld,%ld,%x\n",
-              g_eventCountMouse,
-              (uint32_t)wParam,
-              mouseInfo->time,
-              mouseInfo->pt.x,
-              mouseInfo->pt.y,
-              mouseInfo->mouseData
-          );
-        
-        g_eventCountMouse++;
-        fflush(g_logFileMouse);
-        
-        #if DEBUG
-        printf("Mouse Event: MsgId=%u, X=%ld, Y=%ld, MouseData=%lu, Time=%lu\n",
-            (uint32_t)wParam,
-            mouseInfo->pt.x,
-            mouseInfo->pt.y,
-            mouseInfo->mouseData,
-            mouseInfo->time
-        );
-        #endif
-    }
-    
-    LeaveCriticalSection(&csMouse);
     return CallNextHookEx(NULL, nCode, wParam, lParam);
 }
 
 LRESULT CALLBACK HOOK_LowLevelKeyboardProc(int nCode, WPARAM wParam, LPARAM lParam) {
     if (nCode < 0 || !g_running) return CallNextHookEx(NULL, nCode, wParam, lParam);
+    
     KBDLLHOOKSTRUCT* keyboardInfo = (KBDLLHOOKSTRUCT*)lParam;
-
-    EnterCriticalSection(&csKeyboard);
-
-    // Tạo file mới nếu chưa có hoặc đã đủ số sự kiện
-    if (!g_logFileKeyboard || g_eventCountKeyboard >= MAX_EVENTS_PER_FILE) {
-        HOOK_InitLogFile();
+    
+    // Allocate và copy data để đẩy vào ring buffer
+    HOOK_KeyboardEvent* event = (HOOK_KeyboardEvent*)malloc(sizeof(HOOK_KeyboardEvent));
+    if (event) {
+        event->index = 0; // Sẽ được gán lại trong thread ghi file
+        event->MsgID = (uint32_t)wParam;
+        event->time = keyboardInfo->time;
+        event->vkCode = keyboardInfo->vkCode;
+        event->scanCode = keyboardInfo->scanCode;
+        event->flags = keyboardInfo->flags;
+        
+        // Đẩy vào ring buffer (lock-free)
+        if (HOOK_FUNC_Write_RingData(&ringKeyboard, event) != 0) {
+            // Buffer đầy, giải phóng memory
+            free(event);
+        }
     }
-
-    if (g_logFileKeyboard) {
-        
-        
-          fprintf(g_logFileKeyboard, "%u,%x,%lu,%x,%x,%x\n",
-              g_eventCountKeyboard,
-              (uint32_t)wParam,
-              keyboardInfo->time,
-              keyboardInfo->vkCode,
-              keyboardInfo->scanCode,
-              keyboardInfo->flags
-          );
-        
-        g_eventCountKeyboard++;
-        
-        fflush(g_logFileKeyboard);
-        #if DEBUG
-        printf("Keyboard Event: MsgId=%u, VkCode=%x, ScanCode=%x, Flags=%x, Time=%lu\n",
-            (uint32_t)wParam,
-            keyboardInfo->vkCode,
-            keyboardInfo->scanCode,
-            keyboardInfo->flags,
-            keyboardInfo->time
-        );
-        #endif
-    }
-
-    LeaveCriticalSection(&csMouse);
+    
     return CallNextHookEx(NULL, nCode, wParam, lParam);
+}
+
+// Thread ghi file mouse - đọc từ ring buffer và ghi file
+DWORD WINAPI HOOK_writeMouseLogThread(LPVOID param) {
+    (void)param;
+    
+    while (g_running) {
+        HOOK_MouseEvent* event = NULL;
+        
+        if (!(HOOK_FUNC_Read_RingData(&ringMouse, (void**)&event) == 0 && event))return 0;
+
+        EnterCriticalSection(&csMouse);
+        
+        // Tạo file mới nếu chưa có hoặc đã đủ số sự kiện
+        if (!g_logFileMouse || g_eventCountMouse >= MAX_EVENTS_PER_FILE) HOOK_InitLogFile();
+        
+        if (g_logFileMouse) {
+            fprintf(g_logFileMouse, "%u,%x,%lu,%ld,%ld,%x\n",
+                g_eventCountMouse,
+                event->MsgID,
+                event->time,
+                event->pt.x,
+                event->pt.y,
+                event->mouseData
+            );
+            g_eventCountMouse++;
+            fflush(g_logFileMouse);
+        }
+        
+        LeaveCriticalSection(&csMouse);
+        free(event);
+    }
+    
+    return 0;
+}
+
+// Thread ghi file keyboard - đọc từ ring buffer và ghi file
+DWORD WINAPI HOOK_writeKeyLogThread(LPVOID param) {
+    (void)param;
+    
+    while (g_running) {
+        HOOK_KeyboardEvent* event = NULL;
+        
+        if (!(HOOK_FUNC_Read_RingData(&ringKeyboard, (void**)&event) == 0 && event))return 0;
+
+        EnterCriticalSection(&csKeyboard);
+        
+        // Tạo file mới nếu chưa có hoặc đã đủ số sự kiện
+        if (!g_logFileKeyboard || g_eventCountKeyboard >= MAX_EVENTS_PER_FILE) HOOK_InitLogFile();
+            
+            if (g_logFileKeyboard) {
+                fprintf(g_logFileKeyboard, "%u,%x,%lu,%x,%x,%x\n",
+                    g_eventCountKeyboard,
+                    event->MsgID,
+                    event->time,
+                    event->vkCode,
+                    event->scanCode,
+                    event->flags
+                );
+                g_eventCountKeyboard++;
+                fflush(g_logFileKeyboard);
+            }
+            
+            LeaveCriticalSection(&csKeyboard);
+            free(event);
+        }
+    
+    return 0;
 }
 
 int HOOK_start_recording(void) {
@@ -208,6 +253,15 @@ int HOOK_start_recording(void) {
     
     // Khởi tạo file log đầu tiên
     HOOK_InitLogFile();
+
+    // Tạo thread ghi file - đọc từ ring buffer
+    mouseThread = CreateThread(NULL, 0, HOOK_writeMouseLogThread, NULL, 0, NULL); 
+    keyThread = CreateThread(NULL, 0, HOOK_writeKeyLogThread, NULL, 0, NULL);
+    
+    if (!mouseThread || !keyThread) {
+        printf("Loi: Khong the tao thread ghi file!\n");
+        return 1;
+    } 
     
     // Cài đặt hook chuột và bàn phím
     mouseHook = SetWindowsHookExA(WH_MOUSE_LL, &HOOK_LowLevelMouseProc, NULL, 0);
