@@ -1,5 +1,5 @@
 #include "logger.h"
-
+#include "ring_buffer.h"
 typedef struct{
     SYSTEMTIME st;
     int screenWidth;
@@ -12,7 +12,7 @@ typedef struct{
     DWORD time;
     DWORD mouseData;
     POINT pt;
-}HOOK_MouseEvent;
+}HOOK_log_MouseEvent;
 
 typedef struct{
     uint32_t index;
@@ -21,14 +21,12 @@ typedef struct{
     DWORD vkCode;
     DWORD scanCode;
     DWORD flags;
-}HOOK_KeyboardEvent;
+}HOOK_log_KeyboardEvent;
 
 typedef struct{
     HOOK_Header header;
-    FILE *Mouse;
-    FILE *Keyboard;
-    HOOK_MouseEvent lastMouseEventLeft;
-    HOOK_MouseEvent lastMouseEventRight;
-    HOOK_KeyboardEvent lastKeyEvent[2];
+    Node stackMouse;
+    Node stackKey; 
 }HOOK_Logger;
+
 
