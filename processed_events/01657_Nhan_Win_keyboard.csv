@@ -1,0 +1,2 @@
+Event(uint),MsgID(hex),Time(uint),VkCode(hex),ScanCode(hex),Flags(hex)
+1,100,525328265,5b,5b,1

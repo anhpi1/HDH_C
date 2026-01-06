@@ -1,0 +1,2 @@
+Event(uint),MsgID(hex),Time(uint),X(int),Y(int),MouseData(hex)
+530,20a,13000500,1217,307,ff880000

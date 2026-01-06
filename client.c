@@ -12,6 +12,9 @@ void print_menu() {
     printf("2. STOP (Dung ghi)\n");
     printf("3. REPLAY (Phat lai thao tac)\n");
     printf("4. EXIT\n");
+    printf("5. Sap_xep (Xu ly log)\n");
+    printf("6. Tach_va_dich (Tach va dich log)\n");
+    printf("7. Phan_tich (Phan tich va thong ke)\n");
     printf("Chon chuc nang: ");
 }
 
@@ -97,6 +100,15 @@ int main() {
                 break;
             case 4:
                 should_send = 0;
+                break;
+            case 5:
+                strcpy(cmd, "Sap_xep");
+                break;
+            case 6:
+                strcpy(cmd, "Tach_va_dich");
+                break;
+            case 7:
+                strcpy(cmd, "Phan_tich");
                 break;
             default:
                 printf("Lua chon khong hop le.\n");

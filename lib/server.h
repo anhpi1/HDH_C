@@ -6,6 +6,7 @@
 #include "hook_handler.h"
 #include "replay_engine.h"
 #include "setting.h"
+#include "logger.h"
 
 
 
@@ -22,9 +23,11 @@ typedef struct {
 DWORD WINAPI ThreadFunc1(LPVOID lpParam);
 DWORD WINAPI ThreadFunc2(LPVOID lpParam);
 DWORD WINAPI ThreadFunc3(LPVOID lpParam);
+DWORD WINAPI ThreadFunc4(LPVOID lpParam);
 int HOOK_Server_thread_open(ServerHandle *Server);
 int HOOK_Server_thread_close(ServerHandle *Server);
 int HOOK_Server_init(ServerHandle *Server);
 int HOOK_Server_start(ServerHandle *Server);
+
 
 #endif // SERVER_H

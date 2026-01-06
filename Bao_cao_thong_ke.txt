@@ -1,0 +1,15 @@
+=== BAO CAO THONG KE SU DUNG ===
+- Tong so lan nhan phim: 50
+- Click chuot trai:      52
+- Click chuot phai:      0
+- Cuon chuot len:        212
+- Cuon chuot xuong:      1024
+
+=== DANH SACH COMBO PHIM DA DUNG ===
+- Phat hien Combo: [Ctrl + Win] tai thoi diem 525328265 (STT: 01657)
+- Phat hien Combo: [Ctrl + Win + Mui_ten_Phai] tai thoi diem 525328437 (STT: 01658)
+- Phat hien Combo: [Ctrl + Mui_ten_Phai] tai thoi diem 525329453 (STT: 01663)
+- Phat hien Combo: [Ctrl + Win] tai thoi diem 525329453 (STT: 01664)
+- Phat hien Combo: [Ctrl + Mui_ten_Trai] tai thoi diem 525330031 (STT: 01669)
+- Phat hien Combo: [Ctrl + Win] tai thoi diem 525330031 (STT: 01670)
+- Phat hien Combo: [Ctrl + phim_C] tai thoi diem 525334921 (STT: 01684)

@@ -1,5 +1,6 @@
 #include "server.h"
 
+
 DWORD WINAPI ThreadFunc1(LPVOID lpParam) { 
     HOOK_start_recording();
     return 0; 
@@ -13,6 +14,22 @@ DWORD WINAPI ThreadFunc3(LPVOID lpParam) {
     HOOK_replay_events(Server->mouse_file, Server->key_file, Server->mode); 
     return 0; 
 } 
+DWORD WINAPI ThreadFunc4(LPVOID lpParam) { 
+    ServerHandle *Server = (ServerHandle *)lpParam;
+    Sap_xep();
+    return 0; 
+} 
+DWORD WINAPI ThreadFunc5(LPVOID lpParam) { 
+    ServerHandle *Server = (ServerHandle *)lpParam;
+    Tach_va_dich();
+    return 0; 
+} 
+DWORD WINAPI ThreadFunc6(LPVOID lpParam) { 
+    ServerHandle *Server = (ServerHandle *)lpParam;
+    Phan_tich ();
+    return 0; 
+} 
+
 
 int HOOK_Server_thread_open(ServerHandle *Server){
     WaitForSingleObject(Server->hMutexNumThreads, INFINITE);
@@ -120,6 +137,31 @@ int HOOK_Server_start(ServerHandle *Server){
             
             if(error) continue;
             Server->hThreads[Server->num_threads-1] = CreateThread(NULL, 0, ThreadFunc3, (LPVOID) Server, 0, NULL);
+            HOOK_Server_thread_close(Server);
+        }else if (strcmp(cmd, "Sap_xep") == 0) {
+            error = HOOK_Server_thread_open(Server);
+            if(error) strcpy(response, "FULL");
+            else strcpy(response, "OK Sap_xep");
+            WriteFile(Server->hPipe, response, strlen(response), &bytesWritten, NULL);
+            
+            if(error) continue;
+            Server->hThreads[Server->num_threads-1] = CreateThread(NULL, 0, ThreadFunc4, NULL, 0, NULL);
+            HOOK_Server_thread_close(Server);
+        }else if (strcmp(cmd, "Tach_va_dich") == 0) {
+            error = HOOK_Server_thread_open(Server);
+            if(error) strcpy(response, "FULL");
+            else strcpy(response, "OK Tach_va_dich");
+            WriteFile(Server->hPipe, response, strlen(response), &bytesWritten, NULL);
+            if(error) continue;
+            Server->hThreads[Server->num_threads-1] = CreateThread(NULL, 0, ThreadFunc5, NULL, 0, NULL);
+            HOOK_Server_thread_close(Server);
+        }else if (strcmp(cmd, "Phan_tich") == 0) {
+            error = HOOK_Server_thread_open(Server);
+            if(error) strcpy(response, "FULL");
+            else strcpy(response, "OK Phan_tich");
+            WriteFile(Server->hPipe, response, strlen(response), &bytesWritten, NULL);
+            if(error) continue;
+            Server->hThreads[Server->num_threads-1] = CreateThread(NULL, 0, ThreadFunc6, NULL, 0, NULL);
             HOOK_Server_thread_close(Server);
         }else{
             printf("Unknown command: %s\n", cmd);

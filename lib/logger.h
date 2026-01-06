@@ -8,4 +8,8 @@
 #include "stack.h"
 
 
+int Sap_xep (void);
+int Tach_va_dich (void);
+int Phan_tich (void);
+
 #endif // LOGGER_H
