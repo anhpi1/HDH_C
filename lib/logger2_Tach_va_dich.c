@@ -172,7 +172,7 @@ void write_event_to_file(FILE* fp, EventData* e) {
 int Tach_va_dich (void) {
     printf("=== CHUONG TRINH 2: TACH FILE VA DICH MA ===\n");
 
-    FILE *f_in = fopen(INPUT_FILE, "r");
+    FILE *f_in = fopen(INPUT_FILE, "r");// để đọc file đầu vào
     if (!f_in) {
         printf("[Loi] Khong tim thay file '%s'. Hay chay Step 1 truoc!\n", INPUT_FILE);
         return 1;
@@ -192,10 +192,10 @@ int Tach_va_dich (void) {
     // Vòng lặp chính xử lý từng dòng
     while (1) {
         // 1. Lấy dữ liệu (Từ file hoặc từ biến chờ Pending)
-        if (has_pending) {
+        if (has_pending) {// có dòng chờ xử lý thì thực hiện thao tác trong nhánh này để bên dưới biết để xử lý
             current_evt = pending_evt;
             has_pending = 0;
-        } else {
+        } else {// không có thì đọc cái mới đọc mà hết thì out lỗi thì bỏ qua đọc tiếp
             if (fgets(line, sizeof(line), f_in) == NULL) break; // Hết file
             if (!parse_line(line, &current_evt)) continue;      // Bỏ qua dòng lỗi
         }
@@ -265,7 +265,7 @@ int Tach_va_dich (void) {
             } 
             else { // MOUSE (Click, Scroll...)
                 
-                // >>> ĐOẠN SỬA ĐỔI ĐỂ PHÂN BIỆT CUỘN CHUỘT <<<
+                
                 if (current_evt.msg == 0x20A) { // 0x20A là WM_MOUSEWHEEL
                     // Ép kiểu sang (int) để máy hiểu số Hex lớn là số âm
                     if ((int)current_evt.mouse_data > 0) {
@@ -278,7 +278,7 @@ int Tach_va_dich (void) {
                     // Các hành động khác (Click trái, phải...) giữ nguyên logic cũ
                     strcpy(action_name, get_mouse_action_vi(current_evt.msg));
                 }
-                // >>> KẾT THÚC ĐOẠN SỬA ĐỔI <<<
+                
 
                 sprintf(filename_master, "%s/%05d_%s_mouse.csv", OUTPUT_DIR, stt, action_name);
                 sprintf(filename_dummy,  "%s/%05d_%s_keyboard.csv", OUTPUT_DIR, stt, action_name);

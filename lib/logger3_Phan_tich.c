@@ -7,7 +7,7 @@
 // --- CẤU HÌNH ---
 #define INPUT_DIR "processed_events"
 #define REPORT_FILE "Bao_cao_thong_ke.txt"
-#define CSV_DETAIL_FILE "Bang_chi_tiet_su_kien.csv" // <--- FILE MỚI BẠN YÊU CẦU
+#define CSV_DETAIL_FILE "Bang_chi_tiet_su_kien.csv" 
 
 #define SRC_UNKNOWN 0
 #define SRC_KEYBOARD 1
