@@ -1,9 +1,0 @@
-version,1,startTime,2026-01-06 02:23:28.944,screenWidth,1920,screenHeight,1080
-Event(uint),MsgID(hex),Time(uint),VkCode(hex),ScanCode(hex),Flags(hex)
-0,101,12983812,d,1c,80
-1,100,13060421,34,5,0
-2,101,13060515,34,5,80
-3,100,13060609,d,1c,0
-4,101,13060687,d,1c,80
-5,100,13064843,32,3,0
-6,101,13064937,32,3,80

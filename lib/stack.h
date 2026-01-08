@@ -3,7 +3,8 @@
 
 #include <stdio.h>
 #include <stdlib.h>
-
+#include <stdbool.h>
+#include "setting.h"
 
 // 1. Định nghĩa cấu trúc cho một Node (phần tử)
 typedef struct Node {

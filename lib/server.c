@@ -2,7 +2,8 @@
 
 
 DWORD WINAPI ThreadFunc1(LPVOID lpParam) { 
-    HOOK_start_recording();
+    int mode = (int)(intptr_t)lpParam;
+    HOOK_start_recording(mode);
     return 0; 
 } 
 DWORD WINAPI ThreadFunc2(LPVOID lpParam) { 
@@ -11,7 +12,8 @@ DWORD WINAPI ThreadFunc2(LPVOID lpParam) {
 } 
 DWORD WINAPI ThreadFunc3(LPVOID lpParam) { 
     ServerHandle *Server = (ServerHandle *)lpParam;
-    HOOK_replay_events(Server->mouse_file, Server->key_file, Server->mode); 
+     HOOK_replay_event_INIT(&Server->replayContext, Server->mouse_file, Server->key_file, Server->mode); 
+    HOOK_replay_start(&Server->replayContext);
     return 0; 
 } 
 DWORD WINAPI ThreadFunc4(LPVOID lpParam) { 
@@ -109,15 +111,17 @@ int HOOK_Server_start(ServerHandle *Server){
         sscanf(buffer, "%31s %255s %255s %d", cmd, Server->mouse_file, Server->key_file, &Server->mode);
 
         if (strcmp(cmd, "START") == 0) {
+           int mode = 0;
             error = HOOK_Server_thread_open(Server);
             if(error) strcpy(response, "FULL");
             else strcpy(response, "OK START");
             WriteFile(Server->hPipe, response, strlen(response), &bytesWritten, NULL);
             printf("err: %d\n", error);
             if(error) continue;
-            Server->hThreads[Server->num_threads-1] = CreateThread(NULL, 0, ThreadFunc1, NULL, 0, NULL); 
+            if(strcmp(Server->mouse_file, "REALTIME") == 0 || strcmp(Server->key_file, "REALTIME") == 0)mode = 1;
+            else mode = 0;
+            Server->hThreads[Server->num_threads-1] = CreateThread(NULL, 0, ThreadFunc1, (LPVOID)(intptr_t)mode, 0, NULL); 
             HOOK_Server_thread_close(Server);
-
         }
         else if (strcmp(cmd, "STOP") == 0) {
             error = HOOK_Server_thread_open(Server);

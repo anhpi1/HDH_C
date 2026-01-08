@@ -1,6 +1,6 @@
 === BAO CAO THONG KE SU DUNG ===
 - Tong so lan nhan phim: 50
-- Click chuot trai:      52
+- Click chuot trai:      53
 - Click chuot phai:      0
 - Cuon chuot len:        212
 - Cuon chuot xuong:      1024

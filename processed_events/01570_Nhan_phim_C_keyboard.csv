@@ -1,2 +1,0 @@
-Event(uint),MsgID(hex),Time(uint),VkCode(hex),ScanCode(hex),Flags(hex)
-4,100,517900343,43,2e,0

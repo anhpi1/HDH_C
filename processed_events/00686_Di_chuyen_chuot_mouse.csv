@@ -1,3 +1,0 @@
-Event(uint),MsgID(hex),Time(uint),X(int),Y(int),MouseData(hex)
-641,200,13001484,1085,398,0
-639,200,13001484,1083,397,0

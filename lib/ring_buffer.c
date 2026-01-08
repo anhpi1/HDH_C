@@ -46,7 +46,9 @@ uint8_t HOOK_FUNC_RingData_INIT(HOOK_ring_buffer* ring) {
     return 0;
 }
 
-uint8_t HOOK_FUNC_Write_RingData_small(HOOK_ring_buffer_small * ring, void* data) {
+
+
+uint8_t HOOK_FUNC_Write_RingData_small(HOOK_ring_buffer_small* ring, void* data) {
     LONG currentWrite = ring->pWrite;
     LONG nextWrite = (currentWrite + 1) % BUFFER_SIZE_SMALL;
     LONG currentRead = ring->pRead; 

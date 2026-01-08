@@ -10,6 +10,8 @@
 
 
 
+
+
 typedef struct {
     HANDLE hPipe;
     HANDLE hThreads[THREAD_max_sevice]; 
@@ -18,6 +20,7 @@ typedef struct {
     char mouse_file[256];
     char key_file[256];
     int mode;
+    ReplayContext replayContext;
 } ServerHandle;
 
 DWORD WINAPI ThreadFunc1(LPVOID lpParam);
