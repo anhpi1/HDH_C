@@ -429,87 +429,65 @@ int HOOK_log_filter_processing_key(HOOK_Logger *log, HOOK_log_KeyboardEvent *key
 
 
 int HOOK_log_filter_processing_both_mouse_and_key(HOOK_Logger *log,HOOK_log_KeyboardEvent *keyEvent, HOOK_log_MouseEvent *mouseEvent, int is_mouse) {
-    static bool is_recording = false;
-    static bool first_interaction = true;
-    bool is_toggle_event = false;
+    bool is_trigger_event = false;
 
     if (is_mouse) {
         if (mouseEvent == NULL || log == NULL) return 1;
         if (mouseEvent->MsgID == WM_LBUTTONDOWN) {
-            is_toggle_event = true;
+            is_trigger_event = true;
         }
     } else {
         if (keyEvent == NULL || log == NULL) return 1;
         // Check for Enter key down (VK_RETURN)
         if ((keyEvent->MsgID == WM_KEYDOWN || keyEvent->MsgID == WM_SYSKEYDOWN) && keyEvent->vkCode == VK_RETURN) {
-            is_toggle_event = true;
+            is_trigger_event = true;
         }
     }
 
-    if (is_toggle_event) {
-        if (first_interaction) {
-            // First time MUST be a click to start
-            if (is_mouse) {
-                is_recording = true;
-                first_interaction = false;
-                // Clear stack just in case
-                while (getSize(&log->stackKeySequence) > 0) {
-                    free(pop(&log->stackKeySequence));
-                }
-            }
-        } else {
-            // Subsequent times: Click or Enter toggles
-            if (is_recording) {
-                // Stop recording -> Process sequence
-                is_recording = false;
-                int size = getSize(&log->stackKeySequence);
-                char sequenceBuffer[1024] = {0};
-                if(size){
-                    // Buffer to accumulate the sequence string
-                    
-                    reverseStack(&log->stackKeySequence); // Reverse to print in chronological order
-                }
-                
-                while (getSize(&log->stackKeySequence) > 0) {
-                    HOOK_log_KeyboardEvent* lastKey = (HOOK_log_KeyboardEvent*)pop(&log->stackKeySequence);
-                    if (lastKey) {
-                        if (!HOOK_log_is_continue_keySequence(lastKey)) {
-                            if (lastKey->vkCode == VK_BACK) {
-                                size_t len = strlen(sequenceBuffer);
-                                if (len > 0) sequenceBuffer[len - 1] = '\0';
-                            } else {
-                                char keyName[64] = {0};
-                                if (lastKey->vkCode == VK_SPACE) {
-                                    strcpy(keyName, " ");
-                                } else {
-                                    
-                                    if (!HOOK_vkcode_to_text(lastKey->vkCode, keyName, sizeof(keyName))) {
-                                        #if DEBUG
-                                            sprintf(keyName, "?%x?", lastKey->vkCode);
-                                        #endif
-                                    }
-                                    
-                                    
-                                }
-                                if (strlen(sequenceBuffer) + strlen(keyName) >= sizeof(sequenceBuffer) - 1) {
-                                    HOOK_log_write_real_time(EVENT_KEY_SEQUENCE, sequenceBuffer);
-                                    memset(sequenceBuffer, 0, sizeof(sequenceBuffer));
-                                }
-                                strcat(sequenceBuffer, keyName);
+    if (is_trigger_event) {
+        int size = getSize(&log->stackKeySequence);
+        char sequenceBuffer[1024] = {0};
+        if(size){
+            // Buffer to accumulate the sequence string
+            
+            reverseStack(&log->stackKeySequence); // Reverse to print in chronological order
+        }
+        
+        while (getSize(&log->stackKeySequence) > 0) {
+            HOOK_log_KeyboardEvent* lastKey = (HOOK_log_KeyboardEvent*)pop(&log->stackKeySequence);
+            if (lastKey) {
+                if (!HOOK_log_is_continue_keySequence(lastKey)) {
+                    if (lastKey->vkCode == VK_BACK) {
+                        size_t len = strlen(sequenceBuffer);
+                        if (len > 0) sequenceBuffer[len - 1] = '\0';
+                    } else {
+                        char keyName[64] = {0};
+                        if (lastKey->vkCode == VK_SPACE) {
+                            strcpy(keyName, " ");
+                        } else {
+                            
+                            if (!HOOK_vkcode_to_text(lastKey->vkCode, keyName, sizeof(keyName))) {
+                                #if DEBUG
+                                    sprintf(keyName, "?%x?", lastKey->vkCode);
+                                #endif
                             }
+                            
+                            
                         }
-                        free(lastKey);
+                        if (strlen(sequenceBuffer) + strlen(keyName) >= sizeof(sequenceBuffer) - 1) {
+                            HOOK_log_write_real_time(EVENT_KEY_SEQUENCE, sequenceBuffer);
+                            memset(sequenceBuffer, 0, sizeof(sequenceBuffer));
+                        }
+                        strcat(sequenceBuffer, keyName);
                     }
                 }
-                if(strlen(sequenceBuffer) > 0) HOOK_log_write_real_time(EVENT_KEY_SEQUENCE, sequenceBuffer);
-            } else {
-                // Start recording
-                is_recording = true;
+                free(lastKey);
             }
         }
+        if(strlen(sequenceBuffer) > 0) HOOK_log_write_real_time(EVENT_KEY_SEQUENCE, sequenceBuffer);
     } else {
         // If recording and it's a key press (not the toggle Enter), log it
-        if (is_recording && !is_mouse) {
+        if (!is_mouse) {
             if (keyEvent->MsgID == WM_KEYDOWN || keyEvent->MsgID == WM_SYSKEYDOWN) {
                 HOOK_log_new_key_event(log, keyEvent, 1);
             }
