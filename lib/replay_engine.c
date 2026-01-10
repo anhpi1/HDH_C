@@ -151,8 +151,8 @@ DWORD WINAPI HOOK_replay_load_file(LPVOID lpParam) {
             if (fStartMouse) fclose(fStartMouse);
             if (fStartKey) fclose(fStartKey);
         }
+        Sleep(1000);
     }
-
 
     while (1) {
         if (!has_mouse_event && replay->mouse_log_file) {

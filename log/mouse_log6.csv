@@ -1,0 +1,2 @@
+version,1,startTime,2026-01-09 17:43:43.863,screenWidth,1920,screenHeight,1080
+Event(uint),MsgID(hex),Time(uint),X(int),Y(int),MouseData(hex)

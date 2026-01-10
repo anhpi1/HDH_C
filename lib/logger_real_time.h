@@ -7,7 +7,7 @@
 #include "stack.h"
 #include <stdio.h>
 #include "setting.h"
-#include "ring_buffer.h"
+
 
 
 #define TIME_CLICK 400
@@ -80,3 +80,4 @@ int HOOK_log_filter_processing_both_mouse_and_key(HOOK_Logger *log,HOOK_log_Keyb
 bool HOOK_log_is_continue_keySequence(HOOK_log_KeyboardEvent* keyEvent);
 
 #endif // LOGGER_H
+
