@@ -244,9 +244,6 @@ int Tach_va_dich (void) {
                 const char* key_text = get_key_name_vi(current_evt.vk);
                 const char* prefix = (current_evt.msg == 0x101) ? "Nha" : "Nhan"; 
                 // Lưu ý: Hàm get_key_name_vi đã có chữ "Nhan_" rồi, nên ta xử lý tên file chút
-                
-                // Hack nhỏ: Nếu tên hàm trả về là "Nhan_...", ta thay đổi prefix nếu cần
-                // Nhưng để đơn giản và khớp tên file yêu cầu, ta dùng thẳng tên dịch:
                 if (current_evt.msg == 0x101) {
                     // Nếu là nhả phím, thay chữ "Nhan" thành "Nha" trong tên
                      sprintf(action_name, "Nha_%s", key_text + 5); // +5 để bỏ chữ "Nhan_" gốc
